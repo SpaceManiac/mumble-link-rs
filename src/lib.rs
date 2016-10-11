@@ -2,6 +2,9 @@
 //! for position-aware VoIP communications.
 //!
 //! [link]: https://wiki.mumble.info/wiki/Link
+//!
+//! Connect to Mumble link with `MumbleLink::new()`, set the context or player
+//! identity as needed, and call `update()` every frame with the position data.
 
 extern crate libc;
 
@@ -77,7 +80,7 @@ impl MumbleLink {
     /// Update the context string, used to determine which users on a Mumble
     /// server should hear each other positionally.
     ///
-    /// If context between two Mumble users does not match the positional audio
+    /// If context between two Mumble users does not match, the positional audio
     /// data is stripped server-side and voice will be received as
     /// non-positional. Accordingly, the context should only match for players
     /// on the same game, server, and map, depending on the game itself. When
