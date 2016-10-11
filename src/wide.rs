@@ -17,6 +17,11 @@ pub fn copy(dest: &mut [wchar_t], src: &str) {
     dest[index] = 0;
 }
 
+pub fn read(src: &[wchar_t]) -> String {
+    let zero = src.iter().position(|&c| c == 0).unwrap_or(src.len());
+    String::from_utf16_lossy(&src[..zero])
+}
+
 #[test]
 fn test_macro() {
     let wide = wide!(M u m b l e L i n k);

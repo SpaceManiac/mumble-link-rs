@@ -4,11 +4,9 @@ extern crate winapi;
 use std::io;
 use libc::c_void;
 
-pub type UiTick = winapi::DWORD;
-
 pub struct Map {
     handle: winapi::HANDLE,
-    ptr: *mut c_void,
+    pub ptr: *mut c_void,
 }
 
 impl Map {
@@ -38,10 +36,6 @@ impl Map {
                 ptr: ptr as *mut c_void,
             })
         }
-    }
-
-    pub fn ptr(&self) -> *mut c_void {
-        self.ptr
     }
 }
 

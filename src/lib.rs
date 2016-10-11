@@ -5,7 +5,7 @@
 
 extern crate libc;
 
-use std::io;
+use std::{io, ptr};
 use libc::{c_float, wchar_t};
 
 #[macro_use]
@@ -15,9 +15,10 @@ mod wide;
 #[cfg_attr(not(windows), path="unix.rs")]
 mod imp;
 
+#[derive(Copy)]
 struct LinkedMem {
     ui_version: u32,
-    ui_tick: imp::UiTick,
+    ui_tick: u32,
     avatar: Position,
     name: [wchar_t; 256],
     camera: Position,
@@ -27,9 +28,14 @@ struct LinkedMem {
     description: [wchar_t; 2048],
 }
 
+impl Clone for LinkedMem {
+    fn clone(&self) -> Self { *self }
+}
+
 /// An active Mumble link connection.
 pub struct MumbleLink {
     map: imp::Map,
+    local: LinkedMem,
 }
 
 impl MumbleLink {
@@ -40,37 +46,83 @@ impl MumbleLink {
     /// application is utilizing the Mumble link.
     pub fn new(name: &str, description: &str) -> io::Result<MumbleLink> {
         let map = try!(imp::Map::new(std::mem::size_of::<LinkedMem>()));
-        unsafe {
-            let mem = as_mut(map.ptr());
-            if mem.ui_version != 0 {
-                let zero = mem.name.iter().position(|&c| c == 0).unwrap_or(mem.name.len());
-                let name = String::from_utf16_lossy(&mem.name[..zero]);
-                let zero = mem.description.iter().position(|&c| c == 0).unwrap_or(mem.description.len());
-                let description = String::from_utf16_lossy(&mem.description[..zero]);
-                return Err(io::Error::new(io::ErrorKind::Other,
-                    format!("MumbleLink in use: {}: {}", name, description)))
-            }
-            wide::copy(&mut mem.name, name);
-            wide::copy(&mut mem.description, description);
-            mem.ui_version = 2;
+        let mut local = LinkedMem {
+            ui_version: 2,
+            ui_tick: 0,
+            avatar: Position::default(),
+            name: [0; 256],
+            camera: Position::default(),
+            identity: [0; 256],
+            context_len: 0,
+            context: [0; 256],
+            description: [0; 2048],
+        };
+        wide::copy(&mut local.name, name);
+        wide::copy(&mut local.description, description);
+
+        let previous = unsafe { ptr::read_volatile(map.ptr as *mut LinkedMem) };
+        if previous.ui_version != 0 {
+            let name = wide::read(&previous.name);
+            let description = wide::read(&previous.description);
+            return Err(io::Error::new(io::ErrorKind::Other,
+                format!("MumbleLink in use: {}: {}", name, description)))
         }
+
         Ok(MumbleLink {
             map: map,
+            local: local,
         })
     }
 
-    /// Update the link with the latest player information. Should be called
-    /// once per frame to be kept up to date.
-    pub fn tick(&mut self, update: Update) {
+    /// Update the context string, used to determine which users on a Mumble
+    /// server should hear each other positionally.
+    ///
+    /// If context between two Mumble users does not match the positional audio
+    /// data is stripped server-side and voice will be received as
+    /// non-positional. Accordingly, the context should only match for players
+    /// on the same game, server, and map, depending on the game itself. When
+    /// in doubt, err on the side of including less; this allows for more
+    /// flexibility in the future.
+    ///
+    /// The context should be changed infrequently, at most a few times per
+    /// second.
+    ///
+    /// The context has a maximum length of 256 bytes.
+    pub fn set_context(&mut self, context: &[u8]) {
+        let len = std::cmp::min(context.len(), self.local.context.len());
+        self.local.context[..len].copy_from_slice(&context[..len]);
+        self.local.context_len = len as u32;
+    }
+
+    /// Update the identity, uniquely identifying the player in the given
+    /// context. This is usually the in-game name or ID.
+    ///
+    /// The identity may also contain any additional information about the
+    /// player which might be useful for the Mumble server, for example to move
+    /// teammates to the same channel or give squad leaders additional powers.
+    /// It is recommended that a parseable format like JSON or CSV is used for
+    /// this.
+    ///
+    /// The identity should be changed infrequently, at most a few times per
+    /// second.
+    ///
+    /// The identity has a maximum length of 255 UTF-16 code units.
+    pub fn set_identity(&mut self, identity: &str) {
+        wide::copy(&mut self.local.identity, identity);
+    }
+
+    /// Update the link with the latest position information. Should be called
+    /// once per frame.
+    ///
+    /// `avatar` should be the position of the player. If it is all zero,
+    /// positional audio will be disabled. `camera` should be the position of
+    /// the camera, which may be the same as `avatar`.
+    pub fn update(&mut self, avatar: Position, camera: Position) {
+        self.local.ui_tick = self.local.ui_tick.wrapping_add(1);
+        self.local.avatar = avatar;
+        self.local.camera = camera;
         unsafe {
-            let mem = as_mut(self.map.ptr());
-            mem.ui_tick += 1;
-            mem.avatar = update.avatar;
-            mem.camera = update.camera;
-            wide::copy(&mut mem.identity, update.identity);
-            let len = std::cmp::min(update.context.len(), mem.context.len());
-            mem.context[..len].copy_from_slice(&update.context[..len]);
-            mem.context_len = len as u32;
+            ptr::write_volatile(self.map.ptr as *mut LinkedMem, self.local);
         }
     }
 }
@@ -78,29 +130,10 @@ impl MumbleLink {
 impl Drop for MumbleLink {
     fn drop(&mut self) {
         unsafe {
-            as_mut(self.map.ptr()).ui_version = 0;
+            // set ui_version to 0
+            ptr::write_volatile(self.map.ptr as *mut u32, 0);
         }
     }
-}
-
-unsafe fn as_mut<'a>(ptr: *mut libc::c_void) -> &'a mut LinkedMem {
-    // TODO: determine how safe this is; may cause problems if another
-    // process writes to the MumbleLink file as well.
-    &mut *(ptr as *mut LinkedMem)
-}
-
-/// The data needed each frame to update the link.
-#[derive(Default)]
-pub struct Update<'a> {
-    /// The position of the player's avatar in the world.
-    pub avatar: Position,
-    /// The position of the player's camera in the world.
-    pub camera: Position,
-    /// The identity of the player, such as an in-game name.
-    pub identity: &'a str,
-    /// A context value. Only players with equal contexts will be able to hear
-    /// one another.
-    pub context: &'a [u8],
 }
 
 /// A position in three-dimensional space.
@@ -108,11 +141,20 @@ pub struct Update<'a> {
 /// The vectors are in a left-handed coordinate system: X positive towards
 /// "right", Y positive towards "up", and Z positive towards "front". One unit
 /// is treated as one meter by the sound engine.
+///
+/// `front` and `top` should be unit vectors and perpendicular to each other.
+#[derive(Copy, Clone)]
 pub struct Position {
-    pub position: [c_float; 3],
-    pub front: [c_float; 3],
-    pub top: [c_float; 3],
+    /// The character's position in space.
+    pub position: [f32; 3],
+    /// A unit vector pointing out of the character's eyes.
+    pub front: [f32; 3],
+    /// A unit vector pointing out of the top of the character's head.
+    pub top: [f32; 3],
 }
+
+// `f32` is used above for tidyness; assert that it matches c_float.
+const _ASSERT_CFLOAT_IS_F32: c_float = 0f32;
 
 impl Default for Position {
     fn default() -> Self {
