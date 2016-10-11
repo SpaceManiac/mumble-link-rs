@@ -1,18 +1,18 @@
 extern crate kernel32;
 extern crate winapi;
 
-use std::{io, mem};
-use LinkedMem;
+use std::io;
+use libc::c_void;
 
 pub type UiTick = winapi::DWORD;
 
 pub struct Map {
     handle: winapi::HANDLE,
-    ptr: *mut LinkedMem,
+    ptr: *mut c_void,
 }
 
 impl Map {
-    pub fn new() -> io::Result<Map> {
+    pub fn new(size: usize) -> io::Result<Map> {
         unsafe {
             let handle = kernel32::OpenFileMappingW(
                 winapi::FILE_MAP_ALL_ACCESS,
@@ -27,7 +27,7 @@ impl Map {
                 winapi::FILE_MAP_ALL_ACCESS,
                 0,
                 0,
-                mem::size_of::<LinkedMem>() as u64,
+                size as u64,
             );
             if ptr.is_null() {
                 kernel32::CloseHandle(handle);
@@ -35,15 +35,13 @@ impl Map {
             }
             Ok(Map {
                 handle: handle,
-                ptr: ptr as *mut LinkedMem,
+                ptr: ptr as *mut c_void,
             })
         }
     }
 
-    // TODO: resolve "private type in public interface" warning, either with
-    // `pub(crate)` syntax when it's stable or moving `LinkedMem` to this mod.
-    pub fn as_mut(&mut self) -> &mut LinkedMem {
-        unsafe { &mut *self.ptr }
+    pub fn ptr(&self) -> *mut c_void {
+        self.ptr
     }
 }
 

@@ -6,7 +6,8 @@ macro_rules! wide {
     }
 }
 
-pub unsafe fn copy(dest: &mut [wchar_t], src: &str) {
+pub fn copy(dest: &mut [wchar_t], src: &str) {
+    if dest.is_empty() { return }
     let mut index = 0;
     for ch in src.encode_utf16() {
         if index == dest.len() - 1 { break }
@@ -27,10 +28,10 @@ fn test_macro() {
 #[test]
 fn test_copy() {
     let mut wide = [1; 32];
-    unsafe { copy(&mut wide, "FooBar"); }
+    copy(&mut wide, "FooBar");
     assert_eq!(&wide[..7], wide!(F o o B a r));
 
     let mut wide = [1; 3];
-    unsafe { copy(&mut wide, "ABC"); }
+    copy(&mut wide, "ABC");
     assert_eq!(&wide[..], wide!(A B));
 }

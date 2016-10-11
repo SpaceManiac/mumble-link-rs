@@ -11,7 +11,7 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new() -> io::Result<Map> {
+    pub fn new(size: usize) -> io::Result<Map> {
         unsafe {
             let path = CString::from(format!("/MumbleLink.{}", libc::getuid()));
             let fd = libc::shm_open(
@@ -24,7 +24,7 @@ impl Map {
             }
             let ptr = libc::mmap(
                 ptr::null_mut(),
-                mem::size_of::<LinkedMem>(),
+                size,
                 libc::PROT_READ | libc::PROT_WRITE,
                 libc::MAP_SHARED,
                 fd,
