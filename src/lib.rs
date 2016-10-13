@@ -173,3 +173,24 @@ impl Default for Position {
         }
     }
 }
+
+#[test]
+fn test_wide() {
+    let wide = wide!(M u m b l e L i n k);
+    for (i, b) in "MumbleLink".bytes().enumerate() {
+        assert_eq!(b as wchar_t, wide[i]);
+    }
+    assert_eq!(0, wide[wide.len() - 1]);
+
+    let mut wide = [1; 32];
+    imp::copy(&mut wide, "FooBar");
+    assert_eq!(&wide[..7], wide!(F o o B a r));
+    assert_eq!("FooBar", imp::read(&wide));
+
+    let mut wide = [1; 3];
+    imp::copy(&mut wide, "ABC");
+    assert_eq!(&wide[..], wide!(A B));
+    assert_eq!("AB", imp::read(&wide));
+
+    assert_eq!("BarFoo", imp::read(&wide!(B a r F o o)));
+}
