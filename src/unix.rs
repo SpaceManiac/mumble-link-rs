@@ -1,19 +1,34 @@
-use std::{io, mem, ptr};
+use std::{io, ptr};
 use std::ffi::CString;
-use libc;
-use LinkedMem;
+use libc::{self, wchar_t};
 
-pub type UiTick = u32;
+pub fn copy(dest: &mut [wchar_t], src: &str) {
+    if dest.is_empty() { return }
+    let mut index = 0;
+    for ch in src.chars() {
+        if index == dest.len() - 1 { break }
+        dest[index] = ch as wchar_t;
+        index += 1;
+    }
+    dest[index] = 0;
+}
+
+pub fn read(src: &[wchar_t]) -> String {
+    let zero = src.iter().position(|&c| c == 0).unwrap_or(src.len());
+    src[..zero].iter()
+        .map(|&c| ::std::char::from_u32(c as u32).unwrap_or('\u{FFFD}'))
+        .collect()
+}
 
 pub struct Map {
     fd: libc::c_int,
-    ptr: *mut LinkedMem,
+    pub ptr: *mut libc::c_void,
 }
 
 impl Map {
     pub fn new(size: usize) -> io::Result<Map> {
         unsafe {
-            let path = CString::from(format!("/MumbleLink.{}", libc::getuid()));
+            let path = CString::new(format!("/MumbleLink.{}", libc::getuid())).unwrap();
             let fd = libc::shm_open(
                 path.as_ptr(),
                 libc::O_RDWR,
@@ -36,13 +51,9 @@ impl Map {
             }
             Ok(Map {
                 fd: fd,
-                ptr: ptr as *mut LinkedMem,
+                ptr: ptr,
             })
         }
-    }
-
-    pub fn as_mut(&mut self) -> &mut LinkedMem {
-        unsafe { &mut *self.ptr }
     }
 }
 

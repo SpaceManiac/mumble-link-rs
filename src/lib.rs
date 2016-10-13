@@ -11,8 +11,11 @@ extern crate libc;
 use std::{io, ptr};
 use libc::{c_float, wchar_t};
 
-#[macro_use]
-mod wide;
+macro_rules! wide {
+    ($($ch:ident)*) => {
+        [$(stringify!($ch).as_bytes()[0] as ::libc::wchar_t,)* 0]
+    }
+}
 
 #[cfg_attr(windows, path="windows.rs")]
 #[cfg_attr(not(windows), path="unix.rs")]
@@ -60,13 +63,13 @@ impl MumbleLink {
             context: [0; 256],
             description: [0; 2048],
         };
-        wide::copy(&mut local.name, name);
-        wide::copy(&mut local.description, description);
+        imp::copy(&mut local.name, name);
+        imp::copy(&mut local.description, description);
 
         let previous = unsafe { ptr::read_volatile(map.ptr as *mut LinkedMem) };
         if previous.ui_version != 0 {
-            let name = wide::read(&previous.name);
-            let description = wide::read(&previous.description);
+            let name = imp::read(&previous.name);
+            let description = imp::read(&previous.description);
             return Err(io::Error::new(io::ErrorKind::Other,
                 format!("MumbleLink in use: {}: {}", name, description)))
         }
@@ -111,7 +114,7 @@ impl MumbleLink {
     ///
     /// The identity has a maximum length of 255 UTF-16 code units.
     pub fn set_identity(&mut self, identity: &str) {
-        wide::copy(&mut self.local.identity, identity);
+        imp::copy(&mut self.local.identity, identity);
     }
 
     /// Update the link with the latest position information. Should be called
@@ -138,6 +141,8 @@ impl Drop for MumbleLink {
         }
     }
 }
+
+unsafe impl Send for MumbleLink {}
 
 /// A position in three-dimensional space.
 ///
