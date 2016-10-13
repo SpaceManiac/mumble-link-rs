@@ -104,6 +104,54 @@ impl LinkedMem {
     }
 }
 
+macro_rules! docs {
+    ($(#[$attr:meta])* pub fn set_context(&mut $s:ident, $c:ident: &[u8]) $b:block) => {
+    /// Update the context string, used to determine which users on a Mumble
+    /// server should hear each other positionally.
+    ///
+    /// If context between two Mumble users does not match, the positional audio
+    /// data is stripped server-side and voice will be received as
+    /// non-positional. Accordingly, the context should only match for players
+    /// on the same game, server, and map, depending on the game itself. When
+    /// in doubt, err on the side of including less; this allows for more
+    /// flexibility in the future.
+    ///
+    /// The context should be changed infrequently, at most a few times per
+    /// second.
+    ///
+    /// The context has a maximum length of 256 bytes.
+        $(#[$attr])*
+        pub fn set_context(&mut $s, $c: &[u8]) $b
+    };
+    ($(#[$attr:meta])* pub fn set_identity(&mut $s:ident, $i:ident: &str) $b:block) => {
+    /// Update the identity, uniquely identifying the player in the given
+    /// context. This is usually the in-game name or ID.
+    ///
+    /// The identity may also contain any additional information about the
+    /// player which might be useful for the Mumble server, for example to move
+    /// teammates to the same channel or give squad leaders additional powers.
+    /// It is recommended that a parseable format like JSON or CSV is used for
+    /// this.
+    ///
+    /// The identity should be changed infrequently, at most a few times per
+    /// second.
+    ///
+    /// The identity has a maximum length of 255 UTF-16 code units.
+        $(#[$attr])*
+        pub fn set_identity(&mut $s, $i: &str) $b
+    };
+    ($(#[$attr:meta])* pub fn update(&mut $s:ident, $a:ident: Position, $c:ident: Position) $b:block) => {
+    /// Update the link with the latest position information. Should be called
+    /// once per frame.
+    ///
+    /// `avatar` should be the position of the player. If it is all zero,
+    /// positional audio will be disabled. `camera` should be the position of
+    /// the camera, which may be the same as `avatar`.
+        $(#[$attr])*
+        pub fn update(&mut $s, $a: Position, $c: Position) $b
+    };
+}
+
 /// An active Mumble link connection.
 pub struct MumbleLink {
     map: imp::Map,
@@ -124,54 +172,25 @@ impl MumbleLink {
         })
     }
 
-    /// Update the context string, used to determine which users on a Mumble
-    /// server should hear each other positionally.
-    ///
-    /// If context between two Mumble users does not match, the positional audio
-    /// data is stripped server-side and voice will be received as
-    /// non-positional. Accordingly, the context should only match for players
-    /// on the same game, server, and map, depending on the game itself. When
-    /// in doubt, err on the side of including less; this allows for more
-    /// flexibility in the future.
-    ///
-    /// The context should be changed infrequently, at most a few times per
-    /// second.
-    ///
-    /// The context has a maximum length of 256 bytes.
-    #[inline]
-    pub fn set_context(&mut self, context: &[u8]) {
-        self.local.set_context(context)
+    docs! {
+        #[inline]
+        pub fn set_context(&mut self, context: &[u8]) {
+            self.local.set_context(context)
+        }
     }
-
-    /// Update the identity, uniquely identifying the player in the given
-    /// context. This is usually the in-game name or ID.
-    ///
-    /// The identity may also contain any additional information about the
-    /// player which might be useful for the Mumble server, for example to move
-    /// teammates to the same channel or give squad leaders additional powers.
-    /// It is recommended that a parseable format like JSON or CSV is used for
-    /// this.
-    ///
-    /// The identity should be changed infrequently, at most a few times per
-    /// second.
-    ///
-    /// The identity has a maximum length of 255 UTF-16 code units.
-    #[inline]
-    pub fn set_identity(&mut self, identity: &str) {
-        self.local.set_identity(identity)
+    docs! {
+        #[inline]
+        pub fn set_identity(&mut self, identity: &str) {
+            self.local.set_identity(identity)
+        }
     }
-
-    /// Update the link with the latest position information. Should be called
-    /// once per frame.
-    ///
-    /// `avatar` should be the position of the player. If it is all zero,
-    /// positional audio will be disabled. `camera` should be the position of
-    /// the camera, which may be the same as `avatar`.
-    #[inline]
-    pub fn update(&mut self, avatar: Position, camera: Position) {
-        self.local.update(avatar, camera);
-        unsafe {
-            ptr::write_volatile(self.map.ptr as *mut LinkedMem, self.local);
+    docs! {
+        #[inline]
+        pub fn update(&mut self, avatar: Position, camera: Position) {
+            self.local.update(avatar, camera);
+            unsafe {
+                ptr::write_volatile(self.map.ptr as *mut LinkedMem, self.local);
+            }
         }
     }
 }
@@ -208,73 +227,46 @@ impl SharedLink {
         }
     }
 
-    /// Update the context string, used to determine which users on a Mumble
-    /// server should hear each other positionally.
-    ///
-    /// If context between two Mumble users does not match, the positional audio
-    /// data is stripped server-side and voice will be received as
-    /// non-positional. Accordingly, the context should only match for players
-    /// on the same game, server, and map, depending on the game itself. When
-    /// in doubt, err on the side of including less; this allows for more
-    /// flexibility in the future.
-    ///
-    /// The context should be changed infrequently, at most a few times per
-    /// second.
-    ///
-    /// The context has a maximum length of 256 bytes.
-    #[inline]
-    pub fn set_context(&mut self, context: &[u8]) {
-        self.local.set_context(context)
-    }
-
-    /// Update the identity, uniquely identifying the player in the given
-    /// context. This is usually the in-game name or ID.
-    ///
-    /// The identity may also contain any additional information about the
-    /// player which might be useful for the Mumble server, for example to move
-    /// teammates to the same channel or give squad leaders additional powers.
-    /// It is recommended that a parseable format like JSON or CSV is used for
-    /// this.
-    ///
-    /// The identity should be changed infrequently, at most a few times per
-    /// second.
-    ///
-    /// The identity has a maximum length of 255 UTF-16 code units.
-    #[inline]
-    pub fn set_identity(&mut self, identity: &str) {
-        self.local.set_identity(identity)
-    }
-
-    /// Update the link with the latest position information. Should be called
-    /// once per frame.
-    ///
-    /// `avatar` should be the position of the player. If it is all zero,
-    /// positional audio will be disabled. `camera` should be the position of
-    /// the camera, which may be the same as `avatar`.
-    pub fn update(&mut self, avatar: Position, camera: Position) {
-        self.local.update(avatar, camera);
-
-        // If it's been a hundred ticks, try to reopen the link
-        if self.local.ui_tick % 100 == 0 {
-            self.inner = match mem::replace(&mut self.inner, Inner::Unset) {
-                Inner::Closed(_) => Inner::open(),
-                Inner::InUse(map, last_tick) => {
-                    let previous = unsafe { ptr::read_volatile(map.ptr as *mut LinkedMem) };
-                    if previous.ui_version == 0 || last_tick == previous.ui_tick {
-                        Inner::Active(map)
-                    } else {
-                        Inner::InUse(map, previous.ui_tick)
-                    }
-                }
-                Inner::Active(map) => Inner::Active(map),
-                Inner::Unset => unreachable!(),
-            };
+    docs! {
+        #[inline]
+        pub fn set_context(&mut self, context: &[u8]) {
+            self.local.set_context(context)
         }
+    }
 
-        // If the link is active, write to it
-        if let Inner::Active(ref mut map) = self.inner {
-            unsafe {
-                ptr::write_volatile(map.ptr as *mut LinkedMem, self.local);
+    docs! {
+        #[inline]
+        pub fn set_identity(&mut self, identity: &str) {
+            self.local.set_identity(identity)
+        }
+    }
+
+    docs! {
+        pub fn update(&mut self, avatar: Position, camera: Position) {
+            self.local.update(avatar, camera);
+
+            // If it's been a hundred ticks, try to reopen the link
+            if self.local.ui_tick % 100 == 0 {
+                self.inner = match mem::replace(&mut self.inner, Inner::Unset) {
+                    Inner::Closed(_) => Inner::open(),
+                    Inner::InUse(map, last_tick) => {
+                        let previous = unsafe { ptr::read_volatile(map.ptr as *mut LinkedMem) };
+                        if previous.ui_version == 0 || last_tick == previous.ui_tick {
+                            Inner::Active(map)
+                        } else {
+                            Inner::InUse(map, previous.ui_tick)
+                        }
+                    }
+                    Inner::Active(map) => Inner::Active(map),
+                    Inner::Unset => unreachable!(),
+                };
+            }
+
+            // If the link is active, write to it
+            if let Inner::Active(ref mut map) = self.inner {
+                unsafe {
+                    ptr::write_volatile(map.ptr as *mut LinkedMem, self.local);
+                }
             }
         }
     }
