@@ -106,47 +106,47 @@ impl LinkedMem {
 
 macro_rules! docs {
     ($(#[$attr:meta])* pub fn set_context(&mut $s:ident, $c:ident: &[u8]) $b:block) => {
-    /// Update the context string, used to determine which users on a Mumble
-    /// server should hear each other positionally.
-    ///
-    /// If context between two Mumble users does not match, the positional audio
-    /// data is stripped server-side and voice will be received as
-    /// non-positional. Accordingly, the context should only match for players
-    /// on the same game, server, and map, depending on the game itself. When
-    /// in doubt, err on the side of including less; this allows for more
-    /// flexibility in the future.
-    ///
-    /// The context should be changed infrequently, at most a few times per
-    /// second.
-    ///
-    /// The context has a maximum length of 256 bytes.
+        /// Update the context string, used to determine which users on a Mumble
+        /// server should hear each other positionally.
+        ///
+        /// If context between two Mumble users does not match, the positional audio
+        /// data is stripped server-side and voice will be received as
+        /// non-positional. Accordingly, the context should only match for players
+        /// on the same game, server, and map, depending on the game itself. When
+        /// in doubt, err on the side of including less; this allows for more
+        /// flexibility in the future.
+        ///
+        /// The context should be changed infrequently, at most a few times per
+        /// second.
+        ///
+        /// The context has a maximum length of 256 bytes.
         $(#[$attr])*
         pub fn set_context(&mut $s, $c: &[u8]) $b
     };
     ($(#[$attr:meta])* pub fn set_identity(&mut $s:ident, $i:ident: &str) $b:block) => {
-    /// Update the identity, uniquely identifying the player in the given
-    /// context. This is usually the in-game name or ID.
-    ///
-    /// The identity may also contain any additional information about the
-    /// player which might be useful for the Mumble server, for example to move
-    /// teammates to the same channel or give squad leaders additional powers.
-    /// It is recommended that a parseable format like JSON or CSV is used for
-    /// this.
-    ///
-    /// The identity should be changed infrequently, at most a few times per
-    /// second.
-    ///
-    /// The identity has a maximum length of 255 UTF-16 code units.
+        /// Update the identity, uniquely identifying the player in the given
+        /// context. This is usually the in-game name or ID.
+        ///
+        /// The identity may also contain any additional information about the
+        /// player which might be useful for the Mumble server, for example to move
+        /// teammates to the same channel or give squad leaders additional powers.
+        /// It is recommended that a parseable format like JSON or CSV is used for
+        /// this.
+        ///
+        /// The identity should be changed infrequently, at most a few times per
+        /// second.
+        ///
+        /// The identity has a maximum length of 255 UTF-16 code units.
         $(#[$attr])*
         pub fn set_identity(&mut $s, $i: &str) $b
     };
     ($(#[$attr:meta])* pub fn update(&mut $s:ident, $a:ident: Position, $c:ident: Position) $b:block) => {
-    /// Update the link with the latest position information. Should be called
-    /// once per frame.
-    ///
-    /// `avatar` should be the position of the player. If it is all zero,
-    /// positional audio will be disabled. `camera` should be the position of
-    /// the camera, which may be the same as `avatar`.
+        /// Update the link with the latest position information. Should be called
+        /// once per frame.
+        ///
+        /// `avatar` should be the position of the player. If it is all zero,
+        /// positional audio will be disabled. `camera` should be the position of
+        /// the camera, which may be the same as `avatar`.
         $(#[$attr])*
         pub fn update(&mut $s, $a: Position, $c: Position) $b
     };
