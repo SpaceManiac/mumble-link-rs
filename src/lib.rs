@@ -29,6 +29,7 @@ mod imp;
 ///
 /// `front` and `top` should be unit vectors and perpendicular to each other.
 #[derive(Copy, Clone)]
+#[repr(C)]
 pub struct Position {
     /// The character's position in space.
     pub position: [f32; 3],
@@ -52,6 +53,7 @@ impl Default for Position {
 }
 
 #[derive(Copy)]
+#[repr(C)]
 struct LinkedMem {
     ui_version: u32,
     ui_tick: u32,
