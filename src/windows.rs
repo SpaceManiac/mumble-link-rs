@@ -1,8 +1,6 @@
-extern crate kernel32;
-extern crate winapi;
-
 use std::io;
 use libc::{c_void, wchar_t};
+use winapi::um::{winnt, memoryapi, handleapi};
 
 pub fn copy(dest: &mut [wchar_t], src: &str) {
     if dest.is_empty() { return }
@@ -21,30 +19,30 @@ pub fn read(src: &[wchar_t]) -> String {
 }
 
 pub struct Map {
-    handle: winapi::HANDLE,
+    handle: winnt::HANDLE,
     pub ptr: *mut c_void,
 }
 
 impl Map {
     pub fn new(size: usize) -> io::Result<Map> {
         unsafe {
-            let handle = kernel32::OpenFileMappingW(
-                winapi::FILE_MAP_ALL_ACCESS,
-                winapi::FALSE,
+            let handle = memoryapi::OpenFileMappingW(
+                memoryapi::FILE_MAP_ALL_ACCESS,
+                winapi::shared::minwindef::FALSE,
                 wide!(M u m b l e L i n k).as_ptr(),
             );
             if handle.is_null() {
                 return Err(io::Error::last_os_error());
             }
-            let ptr = kernel32::MapViewOfFile(
+            let ptr = memoryapi::MapViewOfFile(
                 handle,
-                winapi::FILE_MAP_ALL_ACCESS,
+                memoryapi::FILE_MAP_ALL_ACCESS,
                 0,
                 0,
-                size as u64,
+                size,
             );
             if ptr.is_null() {
-                kernel32::CloseHandle(handle);
+                handleapi::CloseHandle(handle);
                 return Err(io::Error::last_os_error());
             }
             Ok(Map {
@@ -58,7 +56,7 @@ impl Map {
 impl Drop for Map {
     fn drop(&mut self) {
         unsafe {
-            kernel32::CloseHandle(self.handle);
+            handleapi::CloseHandle(self.handle);
         }
     }
 }
