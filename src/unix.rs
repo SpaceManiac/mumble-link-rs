@@ -50,8 +50,8 @@ impl Map {
                 return Err(io::Error::last_os_error());
             }
             Ok(Map {
-                fd: fd,
-                ptr: ptr,
+                fd,
+                ptr,
             })
         }
     }

@@ -15,6 +15,3 @@ documentation = "https://wombat.platymuus.com/rustdoc/mumble_link_0.1.0"
 [dependencies]
 libc = "0.2.16"
 winapi = { version = "0.3", features = ["memoryapi", "handleapi", "winnt"] }
-
-[dev-dependencies]
-time = "0.1"

@@ -9,6 +9,7 @@
 use std::{io, ptr, mem};
 use libc::{c_float, wchar_t};
 
+#[cfg(any(test, windows))]
 macro_rules! wide {
     ($($ch:ident)*) => {
         [$(stringify!($ch).as_bytes()[0] as ::libc::wchar_t,)* 0]

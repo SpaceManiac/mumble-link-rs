@@ -1,5 +1,4 @@
 extern crate mumble_link;
-extern crate time;
 
 use std::io;
 use std::sync::mpsc;
@@ -78,23 +77,22 @@ enum Command {
 
 // Timer that remembers when it is supposed to go off
 struct Timer {
-    next_tick_at: time::Timespec,
-    tick_len: time::Duration,
+    next_tick_at: std::time::Instant,
+    tick_len: std::time::Duration,
 }
 
 impl Timer {
     fn new(tick_len_ms: u64) -> Timer {
-        let tick_len = time::Duration::milliseconds(tick_len_ms as i64);
+        let tick_len = std::time::Duration::from_millis(tick_len_ms);
         Timer {
-            next_tick_at: time::get_time() + tick_len,
-            tick_len: tick_len,
+            next_tick_at: std::time::Instant::now() + tick_len,
+            tick_len,
         }
     }
 
     fn sleep_until_tick(&mut self) {
-        let difference = self.next_tick_at - time::get_time();
-        if difference > time::Duration::zero() {
-            std::thread::sleep(std::time::Duration::from_millis(difference.num_milliseconds() as u64))
+        if let Some(until_next_tick) = self.next_tick_at.checked_duration_since(std::time::Instant::now()) {
+            std::thread::sleep(until_next_tick)
         }
         self.next_tick_at = self.next_tick_at + self.tick_len;
     }
