@@ -6,8 +6,6 @@
 //! Connect to Mumble link with `MumbleLink::new()`, set the context or player
 //! identity as needed, and call `update()` every frame with the position data.
 
-extern crate libc;
-
 use std::{io, ptr, mem};
 use libc::{c_float, wchar_t};
 
@@ -169,7 +167,7 @@ impl MumbleLink {
     /// conflict with this link. To avoid this, use `SharedLink`.
     pub fn new(name: &str, description: &str) -> io::Result<MumbleLink> {
         Ok(MumbleLink {
-            map: try!(imp::Map::new(std::mem::size_of::<LinkedMem>())),
+            map: (imp::Map::new(std::mem::size_of::<LinkedMem>()))?,
             local: LinkedMem::new(name, description),
         })
     }

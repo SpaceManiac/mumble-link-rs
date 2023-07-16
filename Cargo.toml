@@ -1,6 +1,7 @@
 [package]
 name = "mumble-link"
-version = "0.1.0"
+version = "0.2.0"
+edition = "2018"
 authors = ["Tad Hardesty <tad@platymuus.com>"]
 
 description = "Connector for Mumble Link positional audio"
@@ -13,8 +14,7 @@ documentation = "https://wombat.platymuus.com/rustdoc/mumble_link_0.1.0"
 
 [dependencies]
 libc = "0.2.16"
-winapi = "0.2.8"
-kernel32-sys = "0.2.2"
+winapi = { version = "0.3", features = ["memoryapi", "handleapi", "winnt"] }
 
 [dev-dependencies]
 time = "0.1"
